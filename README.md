@@ -125,6 +125,17 @@ helm install stable/tomcat
 ```
 This will install the tomcat on your EKS cluster. 
 
+### Taints/Tolerations and Node Labels
+Spot instances provisioned by the nodegroup are labeled with the label `spotfleet=true`. We will use this label to control pod scheduling to available EC2 Spot Instances. Add the following section to the ***pod*** spec to indicate the scheduler to schedule the pod only to nodes that carry the label `spotfleet=true`. 
 
-
-
+```yaml
+     affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: spotfleet
+                operator: In
+                values:
+                - "true"
+```
