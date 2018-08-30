@@ -31,4 +31,100 @@ Ideally, use the `awscli` for initiating the `aws eks create-cluster` as indicat
 ### [Configure kubectl for Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html#Create%20Your%20Amazon%20EKS%20Cluster)
 Follow the instructions listed in the kubectl configuration and make sure you are successfully able to execute `kubectl` commands against the cluster API server, e.g., `kubectl get svc`.
 
+### [Launch and Configure Amazon EKS Worker Nodes](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html#Create%20Your%20Amazon%20EKS%20Cluster)
+We will create two worker node groups, the first is On-Demand EC2 instances, the second is a diversified EC2 Spot instance. 
+Both worker nodesgroups are provisioned using CloudFormation templates.
+* [EC2 OD Instances template](https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2018-08-21/amazon-eks-nodegroup.yaml)
+* [EC2 Spot Instances template](https://github.com/yahavb/fuzzy-eks/blob/master/cloud-fomration/spot-nodegroup.yaml)
+
+For both templates, follow the instructions listed in ***Step 3: Launch and Configure Amazon EKS Worker Nodes***
+When enabling ***worker nodes to join your cluster*** make sure this role has the policy `AmazonEKS_CNI_Policy` this policy enable the nodes in the node group to assign network resources from the Container Network Interface (CNI). Below is a list of Actions needed for the `NodeInstanceRole`
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AssignPrivateIpAddresses",
+                "ec2:AttachNetworkInterface",
+                "ec2:CreateNetworkInterface",
+                "ec2:DeleteNetworkInterface",
+                "ec2:DescribeInstances",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DetachNetworkInterface",
+                "ec2:ModifyNetworkInterfaceAttribute"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:CreateTags"
+            ],
+            "Resource": [
+                "arn:aws:ec2:*:*:network-interface/*"
+            ]
+        }
+    ]
+}
+```
+Once `aws-auth-cm.yaml` is applied, nodes can be joined the available pool. Feel free to skip ***Step 4: Launch a Guest Book Application*** as we are going to use Helm for deploying workloads. 
+
+### Installing and Configure Helm
+* Install Helm using [Helm project](https://github.com/helm/helm/releases)
+
+Make sure that `helm version` returns healthy results
+
+* Config Tiller 
+Tiller is the Helm server-side component that requires k8s permissions via dedicated `serviceaccount`. Please note that no extra IAM roles are required for the Tiller to run as it uses a `serviceaccount`. The following command will create a service account for the tiller in `kube-system` namespace. 
+```
+kubectl create serviceaccount tiller --namespace kube-system
+```
+The next step is to bind the new serviceaccount `tiller` with the ClusterRole `cluster-admin`. You don't need to create `cluster-admin` role as it is a k8s predefined ClusterRole. 
+
+```yaml
+apiVersion: v1
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: tiller-role-binding
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: tiller
+  namespace: kube-system
+  ```
+
+Apply [tiller-ClusterRoleBinding.yaml](https://github.com/yahavb/fuzzy-eks/blob/master/config/tiller-ClusterRoleBinding.yaml) by executing `kubectl apply -f tiller-ClusterRoleBinding.yaml` 
+
+* Initialize the tiller
+```
+helm init --service-account tiller
+```
+Check the tiller is running in kube-system namespace
+```
+kubectl get pods --namespace kube-system | grep tiller
+```
+
+At this point Helm is ready for deploying packages. One can author its own, e.g., [nginx](https://github.com/yahavb/nginx-ananware) or search for public packages. 
+
+* Update the helm repo
+```
+helm repo update
+```
+* Search for packages 
+```
+helm search| grep tomcat
+```
+```
+helm install stable/tomcat
+```
+This will install the tomcat on your EKS cluster. 
+
+
+
 
