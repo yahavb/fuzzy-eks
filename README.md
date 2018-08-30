@@ -125,7 +125,7 @@ helm install stable/tomcat
 ```
 This will install the tomcat on your EKS cluster. 
 
-### Taints/Tolerations and Node Labels
+### Taints/Tolerations and Spot/OD Node Labels
 Spot instances provisioned by the nodegroup are labeled with the label `spotfleet=true`. We will use this label to control pod scheduling to available EC2 Spot Instances. Add the following section to the ***pod*** spec to indicate the scheduler to schedule the pod only to nodes that carry the label `spotfleet=true`. 
 
 ```yaml
@@ -139,3 +139,6 @@ Spot instances provisioned by the nodegroup are labeled with the label `spotflee
                 values:
                 - "true"
 ```
+
+### Spot Termination Handling
+Although Spot Instance interruption is becoming less unlikely event, its impact is perceived as a significant annoyance by users. [eks-lambda-drainer](https://github.com/pahud/eks-lambda-drainer) proposes a strategy to avoid these negative user impact. eks-lambda-drainer listen to spot termination signal from CloudWatch Events every 120 seconds in before the final termination process. Lambda function as the CloudWatch Event target, eks-lambda-drainer will perform the taint-based eviction on the terminating node. All pods without relative toleration will be evicted and rescheduled to another node. i.e., minimal impact on the spot instance termination.
