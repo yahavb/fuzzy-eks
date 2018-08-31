@@ -142,7 +142,7 @@ Spot instances provisioned by the nodegroup are labeled with the label `spotflee
 
 ### EC2 Spot Termination Handling
 In case of instance termination, two states are possible, (1) the workload is not yet scheduled on a node to be terminated. (2) the workload is scheduled and required to be evicted before termination.   
-#### Workload is not yet scheduled
+#### Workload is not yet scheduled yet
 Although Spot Instance interruption is becoming less unlikely event, its impact is perceived as a significant annoyance by users. [eks-lambda-drainer](https://github.com/pahud/eks-lambda-drainer) proposes a strategy to avoid these negative user impact. eks-lambda-drainer listen to spot termination signal from CloudWatch Events every 120 seconds in before the final termination process. Lambda function as the CloudWatch Event target, eks-lambda-drainer will perform the taint-based eviction on the terminating node. All pods without relative toleration will be evicted and rescheduled to another node. i.e., minimal impact on the spot instance termination.
-#### Workload is running on a node that is going to be terminated
+#### Workload is scheduled on a node that is going to be terminated
 In the case of EC2 Spot instance interruption while the app is running, Kuberenetes supports Container lifecycle events. Kubetnetes supports postStart and preStop events. [nginx-spot.ymal](https://github.com/yahavb/fuzzy-eks/blob/master/specs/nginx-spot.yaml) shows an example of how to cofnigure PreStop event. Using PreStop event, the app can notify its users.
